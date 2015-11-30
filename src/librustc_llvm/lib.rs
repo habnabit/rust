@@ -2156,6 +2156,12 @@ extern {
     pub fn LLVMRustSetComdat(M: ModuleRef, V: ValueRef, Name: *const c_char);
     pub fn LLVMRustUnsetComdat(V: ValueRef);
 }
+#[cfg(have_component_jsbackend)]
+extern {
+    pub fn LLVMInitializeJSBackendTargetInfo();
+    pub fn LLVMInitializeJSBackendTarget();
+    pub fn LLVMInitializeJSBackendTargetMC();
+}
 
 // LLVM requires symbols from this library, but apparently they're not printed
 // during llvm-config?
@@ -2417,6 +2423,10 @@ pub fn initialize_available_targets() {
                  LLVMInitializePNaClTargetInfo,
                  LLVMInitializePNaClTarget,
                  LLVMInitializePNaClTargetMC);
+    init_target!(llvm_component = "jsbackend",
+                 LLVMInitializeJSBackendTargetInfo,
+                 LLVMInitializeJSBackendTarget,
+                 LLVMInitializeJSBackendTargetMC);
 }
 
 pub fn last_error() -> Option<String> {
