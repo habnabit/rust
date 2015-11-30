@@ -576,6 +576,12 @@ pub mod debuginfo {
       FlagRValueReference    = 1 << 15
     }
 }
+#[cfg(have_component_jsbackend)]
+extern {
+    pub fn LLVMInitializeJSBackendTargetInfo();
+    pub fn LLVMInitializeJSBackendTarget();
+    pub fn LLVMInitializeJSBackendTargetMC();
+}
 
 
 // Link to our native llvm bindings (things that we need to use the C++ api
@@ -2417,6 +2423,10 @@ pub fn initialize_available_targets() {
                  LLVMInitializePNaClTargetInfo,
                  LLVMInitializePNaClTarget,
                  LLVMInitializePNaClTargetMC);
+    init_target!(llvm_component = "jsbackend",
+                 LLVMInitializeJSBackendTargetInfo,
+                 LLVMInitializeJSBackendTarget,
+                 LLVMInitializeJSBackendTargetMC);
 }
 
 pub fn last_error() -> Option<String> {
