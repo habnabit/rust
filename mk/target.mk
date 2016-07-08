@@ -93,8 +93,9 @@ $$(TLIB$(1)_T_$(2)_H_$(3))/stamp.$(4): \
 		| $$(TLIB$(1)_T_$(2)_H_$(3))/
 	@$$(call E, rustc: $$(@D)/lib$(4))
 	@touch $$@.start_time
-	$$(call REMOVE_ALL_OLD_GLOB_MATCHES, \
-	    $$(dir $$@)$$(call CFG_LIB_GLOB_$(2),$(4)))
+	$$(if $$(CFG_LIB_GLOB_$(2)), \
+	    $$(call REMOVE_ALL_OLD_GLOB_MATCHES, \
+	        $$(dir $$@)$$(call CFG_LIB_GLOB_$(2),$(4))))
 	$$(call REMOVE_ALL_OLD_GLOB_MATCHES, \
 	    $$(dir $$@)$$(call CFG_RLIB_GLOB,$(4)))
 	$(Q)CFG_LLVM_LINKAGE_FILE=$$(LLVM_LINKAGE_PATH_$(2)) \
@@ -111,8 +112,9 @@ $$(TLIB$(1)_T_$(2)_H_$(3))/stamp.$(4): \
 		-C metadata=$$(CFG_FILENAME_EXTRA) \
 		$$<
 	@touch -r $$@.start_time $$@ && rm $$@.start_time
-	$$(call LIST_ALL_OLD_GLOB_MATCHES, \
-	    $$(dir $$@)$$(call CFG_LIB_GLOB_$(2),$(4)))
+	$$(if $$(CFG_LIB_GLOB_$(2)), \
+	    $$(call LIST_ALL_OLD_GLOB_MATCHES, \
+	        $$(dir $$@)$$(call CFG_LIB_GLOB_$(2),$(4))))
 	$$(call LIST_ALL_OLD_GLOB_MATCHES, \
 	    $$(dir $$@)$$(call CFG_RLIB_GLOB,$(4)))
 
