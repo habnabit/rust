@@ -108,7 +108,8 @@ fn rust_exception_class() -> uw::_Unwind_Exception_Class {
 
 // All targets, except ARM which uses a slightly different ABI (however, iOS goes here as it uses
 // SjLj unwinding).  Also, 64-bit Windows implementation lives in seh64_gnu.rs
-#[cfg(all(any(target_os = "ios", not(target_arch = "arm"))))]
+#[cfg(all(any(target_os = "ios", not(target_arch = "arm")),
+          not(target_arch = "asmjs")))]
 pub mod eabi {
     use unwind as uw;
     use libc::{c_int, uintptr_t};
@@ -195,6 +196,72 @@ pub mod eabi {
         rust_eh_personality(version, actions, exception_class, ue_header, context)
     }
 }
+
+// Only retained for asm.js at the moment.
+//
+// We could implement our personality routine in Rust, however exception
+// info decoding is tedious.  More importantly, personality routines have to
+// handle various platform quirks, which are not fun to maintain.  For this
+// reason, we attempt to reuse personality routine of the C language:
+// __gcc_personality_v0.
+//
+// Since C does not support exception catching, __gcc_personality_v0 simply
+// always returns _URC_CONTINUE_UNWIND in search phase, and always returns
+// _URC_INSTALL_CONTEXT (i.e. "invoke cleanup code") in cleanup phase.
+//
+// This is pretty close to Rust's exception handling approach, except that Rust
+// does have a single "catch-all" handler at the bottom of each thread's stack.
+// So we have two versions of the personality routine:
+// - rust_eh_personality, used by all cleanup landing pads, which never catches,
+//   so the behavior of __gcc_personality_v0 is perfectly adequate there, and
+// - rust_eh_personality_catch, used only by rust_try(), which always catches.
+//
+// See also: rustc_trans::trans::intrinsic::trans_gnu_try
+
+#[cfg(target_arch = "asmjs")]
+pub mod eabi {
+    use unwind as uw;
+    use libc::c_int;
+
+    extern "C" {
+        fn __gcc_personality_v0(version: c_int,
+                                actions: uw::_Unwind_Action,
+                                exception_class: uw::_Unwind_Exception_Class,
+                                ue_header: *mut uw::_Unwind_Exception,
+                                context: *mut uw::_Unwind_Context)
+                                -> uw::_Unwind_Reason_Code;
+    }
+
+    #[lang = "eh_personality"]
+    #[no_mangle]
+    extern "C" fn rust_eh_personality(version: c_int,
+                                      actions: uw::_Unwind_Action,
+                                      exception_class: uw::_Unwind_Exception_Class,
+                                      ue_header: *mut uw::_Unwind_Exception,
+                                      context: *mut uw::_Unwind_Context)
+                                      -> uw::_Unwind_Reason_Code {
+        unsafe { __gcc_personality_v0(version, actions, exception_class, ue_header, context) }
+    }
+
+    #[lang = "eh_personality_catch"]
+    #[no_mangle]
+    pub extern "C" fn rust_eh_personality_catch(version: c_int,
+                                                actions: uw::_Unwind_Action,
+                                                exception_class: uw::_Unwind_Exception_Class,
+                                                ue_header: *mut uw::_Unwind_Exception,
+                                                context: *mut uw::_Unwind_Context)
+                                                -> uw::_Unwind_Reason_Code {
+
+        if (actions as c_int & uw::_UA_SEARCH_PHASE as c_int) != 0 {
+            // search phase
+            uw::_URC_HANDLER_FOUND // catch!
+        } else {
+            // cleanup phase
+            unsafe { __gcc_personality_v0(version, actions, exception_class, ue_header, context) }
+        }
+    }
+}
+
 
 // ARM EHABI uses a slightly different personality routine signature,
 // but otherwise works the same.
